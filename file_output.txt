@@ -1,0 +1,10 @@
+<HEAD> value=111
+<CHILD1> value=222
+<CHILD_ADDED> value=6666
+</CHILD_ADDED>
+</CHILD1>
+<CHILD2> value=333
+<CHILD3> value=444
+</CHILD3>
+</CHILD2>
+</HEAD>

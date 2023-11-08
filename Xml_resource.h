@@ -23,17 +23,17 @@ public:
 class Xml_resource {
 private:
 	std::unique_ptr<Node> root;
-	std::unique_ptr<Node> rec_load(std::vector<std::string>& parsed, int& index);
-	void rec_node_print(std::unique_ptr<Node>& node);
-	void rec_node_upload(std::unique_ptr<Node>& node, std::ofstream& file);
+	std::unique_ptr<Node> rec_load(const std::vector<std::string>& parsed, int& index);
+	void rec_node_print(const Node* node) const;
+	void rec_node_upload(const std::unique_ptr<Node>& node, std::ofstream& file) const;
 	Xml_resource() = default;
 	Xml_resource(const Xml_resource&) = default;
 public:
 	
 	static std::unique_ptr<Xml_resource> create() { return std::unique_ptr<Xml_resource>(new Xml_resource); };
-	void load(const char* file_name);
-	void print();
-	void upload(const char* file_name);
+	void load(const std::string& file_name);
+	void print() const;	
+	void upload(const std::string& file_name) const;
 	class iterator {
 	private:
 		unsigned int current_index;

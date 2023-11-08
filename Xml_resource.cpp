@@ -1,6 +1,56 @@
 #include "Xml_resource.h"
 
-std::vector<std::string> parse_line(const char* file_name) {
+bool is_opening_tag(const char& first_letter, const char& second_letter) {
+	if (first_letter == '<' && second_letter != '/')
+		return true;
+	else
+		return false;
+}
+
+std::string get_value_from_line(const std::string& line, unsigned int& index) {
+	std::string value;
+	while (line[index] != '>') {
+		value += line[index];
+		++index;
+	}
+	return value;
+}
+
+std::vector<std::string> parse_line(const std::string& line) {
+	unsigned int i = 0;
+	std::vector<std::string> parsed_line;
+	while (i < line.size()) {
+		std::string word;
+		std::string number;
+		if (is_opening_tag(line[i], line[i+1])) {
+			word += '<';
+			++i;
+			while (line[i] != '>') {
+				word += line[i];
+				++i;
+			}
+			word += '>';
+			parsed_line.push_back(word);
+			i += std::size("> value=");
+			while (isdigit(line[i])) {
+				number += line[i];
+				++i;
+			}
+			parsed_line.push_back(number);
+		}
+		else {
+			word += '<';
+			++i;
+			word += get_value_from_line(line, i);
+			word += '>';
+			parsed_line.push_back(word);
+		}
+		++i;
+	}
+	return parsed_line;
+}
+
+std::vector<std::string> parse_file(const std::string& file_name) {
 	std::ifstream file;
 	file.open(file_name);
 	if (!file.is_open()) {
@@ -11,46 +61,15 @@ std::vector<std::string> parse_line(const char* file_name) {
 
 	std::string line;
 	while (std::getline(file, line)) {
-		unsigned int i = 0;
-
-		while (i < line.size()) {
-			std::string word;
-			std::string number;
-			if (line[i] == '<' && line[i + 1] != '/') {
-				word += '<';
-				++i;
-				while (line[i] != '>') {
-					word += line[i];
-					++i;
-				}
-				word += '>';
-				ans.push_back(word);
-				i += 8;
-				while (isdigit(line[i])) {
-					number += line[i];
-					++i;
-				}
-				ans.push_back(number);
-			}
-			if (line[i] == '<' && line[i + 1] == '/') {
-				word += '<';
-				++i;
-				while (line[i] != '>') {
-					word += line[i];
-					++i;
-				}
-				word += '>';
-				ans.push_back(word);
-			}
-			++i;
-		}
-
+		std::vector<std::string> parsed_line = parse_line(line);
+		for (auto& tmp : parsed_line)
+			ans.push_back(tmp);
 	}
 	file.close();
 	return ans;
 }
 
-std::unique_ptr<Node> Xml_resource::rec_load(std::vector<std::string>& parsed, int& index) {
+std::unique_ptr<Node> Xml_resource::rec_load(const std::vector<std::string>& parsed, int& index) {
 	std::string name = parsed[index].substr(1, parsed[index].size() - 2);
 	++index;
 	int value = std::stoi(parsed[index]);
@@ -64,26 +83,26 @@ std::unique_ptr<Node> Xml_resource::rec_load(std::vector<std::string>& parsed, i
 	return node_ptr;
 }
 
-void Xml_resource::load(const char* file_name) {
-	std::vector<std::string> parsed = parse_line(file_name);
+void Xml_resource::load(const std::string& file_name) {
+	std::vector<std::string> parsed = parse_file(file_name);
 	
 	int index = 0;
 	this->root = std::move(rec_load(parsed, index));
 }
 
-void Xml_resource::rec_node_print(std::unique_ptr<Node>& node) {
+void Xml_resource::rec_node_print(const Node* node) const {
 	std::cout << '<' << node->name << "> value=" << node->value << std::endl;
 	for (unsigned int i = 0; i < size(node->children); ++i) {
-		rec_node_print(node->children[i]);
+		rec_node_print(node->children[i].get());
 	}
 	std::cout << "</" << node->name << '>' << std::endl;
 }
 
-void Xml_resource::print() {
-	rec_node_print(root);
+void Xml_resource::print() const {
+	rec_node_print(root.get());
 }
 
-void Xml_resource::rec_node_upload(std::unique_ptr<Node>& node, std::ofstream& file) {
+void Xml_resource::rec_node_upload(const std::unique_ptr<Node>& node, std::ofstream& file) const  {
 	file << '<' << node->name << "> value=" << node->value << std::endl;
 	for (unsigned int i = 0; i < size(node->children); ++i) {
 		rec_node_upload(node->children[i], file);
@@ -91,7 +110,7 @@ void Xml_resource::rec_node_upload(std::unique_ptr<Node>& node, std::ofstream& f
 	file << "</" << node->name << '>' << std::endl;
 }
 
-void Xml_resource::upload(const char* file_name) {
+void Xml_resource::upload(const std::string& file_name) const {
 	std::ofstream file;
 	file.open(file_name);
 	if (!file.is_open())
@@ -176,10 +195,10 @@ Xml_resource::iterator Xml_resource::find_by_value(const int value) const {
 }
 
 Xml_resource::iterator Xml_resource::add(const std::string name, const int value, Xml_resource::iterator& it) {
-	Xml_resource::iterator itt(this->begin());
-	while (itt != it)
-		++itt;
-	if (itt == it) {
+	Xml_resource::iterator it_from_root(this->begin());
+	while (it_from_root != it)
+		++it_from_root;
+	if (it_from_root == it) {
 		std::unique_ptr<Node> new_node(new Node(name, value));
 		Xml_resource::iterator it_new_node(new_node);
 		it->children.push_back(std::move(new_node));
